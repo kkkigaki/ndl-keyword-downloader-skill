@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
+from ndl_archive import ARCHIVE_FILENAME, write_reference_archive
 from ndl_common import (
     WorkflowError,
     pdf_page_count,
@@ -61,6 +62,10 @@ INSPECTOR_JS = r"""
   const citationTrigger = Array.from(document.querySelectorAll("button,a,summary"))
     .find((node) => (node.innerText || "").includes("転載時の表記例"));
   const citationContainer = citationTrigger?.closest("section,details,div,li");
+  const citationText = [
+    citationContainer?.innerText || "",
+    citationContainer?.textContent || ""
+  ].map((value) => value.trim()).sort((a, b) => b.length - a.length)[0] || "";
   const fallbackTitle = document.title.replace(/\s*-\s*国立国会図書館デジタルコレクション\s*$/, "");
   return JSON.stringify({
     pid,
@@ -70,13 +75,14 @@ INSPECTOR_JS = r"""
     author: field("著者"),
     publisher: field("出版者"),
     publication_date: field("出版年月日"),
+    volume_issue: field("巻号") || field("巻次"),
     call_number: field("請求記号"),
     bibliographic_id: field("書誌ID"),
     doi: field("識別子（DOI）"),
     access_scope: accessMatch ? accessMatch[1].trim() : "",
     total_frames: totalMatch ? Number(totalMatch[1]) : null,
     toc,
-    reproduction_note: (citationContainer?.innerText || "").slice(0, 1200),
+    reproduction_note: citationText.slice(0, 1200),
     captured_at: new Date().toISOString()
   });
 })()
@@ -518,6 +524,20 @@ def invalid_name(output: Path, pages: int) -> Path:
     return candidate
 
 
+def refresh_reference_archive(args: argparse.Namespace, plan: Any) -> Optional[Dict[str, Any]]:
+    if args.no_archive:
+        return None
+    archive_path = args.archive or args.output_dir / ARCHIVE_FILENAME
+    result = write_reference_archive(plan, args.output_dir, archive_path)
+    print(json.dumps(result, ensure_ascii=False), flush=True)
+    if result["problems"]:
+        raise WorkflowError(
+            "The Excel archive contains verification problems: "
+            + "; ".join(result["problems"])
+        )
+    return result
+
+
 def download(args: argparse.Namespace) -> int:
     plan = read_json(args.plan)
     rows = plan_rows(plan)
@@ -545,6 +565,7 @@ def download(args: argparse.Namespace) -> int:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     current_pid = None
     completed = 0
+    archive_result = None
     for row in selected:
         pid = str(row.get("pid") or "")
         start = int(row.get("start"))
@@ -557,9 +578,12 @@ def download(args: argparse.Namespace) -> int:
             actual = pdf_page_count(output)
             if actual == expected:
                 row["status"] = "downloaded"
+                row["actual_pages"] = actual
+                row.setdefault("downloaded_at", datetime.now(timezone.utc).isoformat())
                 row.pop("error", None)
                 write_json_atomic(args.plan, plan)
                 completed += 1
+                archive_result = refresh_reference_archive(args, plan)
                 continue
             if not args.replace_invalid:
                 raise WorkflowError(
@@ -636,7 +660,20 @@ def download(args: argparse.Namespace) -> int:
                 ),
                 flush=True,
             )
-    print(json.dumps({"selected": len(selected), "completed": completed}, ensure_ascii=False))
+        if row.get("status") == "downloaded":
+            archive_result = refresh_reference_archive(args, plan)
+    if archive_result is None:
+        archive_result = refresh_reference_archive(args, plan)
+    print(
+        json.dumps(
+            {
+                "selected": len(selected),
+                "completed": completed,
+                "archive": archive_result["archive"] if archive_result else None,
+            },
+            ensure_ascii=False,
+        )
+    )
     return 0
 
 
@@ -688,6 +725,16 @@ def build_parser() -> argparse.ArgumentParser:
     download_parser.add_argument("--continue-on-error", action="store_true")
     download_parser.add_argument("--delay", type=float, default=2.0)
     download_parser.add_argument("--timeout", type=int, default=300)
+    download_parser.add_argument(
+        "--archive",
+        type=Path,
+        help=f"Excel archive path; defaults to OUTPUT_DIR/{ARCHIVE_FILENAME}",
+    )
+    download_parser.add_argument(
+        "--no-archive",
+        action="store_true",
+        help="Disable the automatic Excel reference archive",
+    )
     download_parser.add_argument(
         "--execute",
         action="store_true",
