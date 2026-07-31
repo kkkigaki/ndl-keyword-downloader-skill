@@ -15,6 +15,7 @@ This project does **not** bypass access controls and does not read browser cooki
 - False-positive resistance: raw page text and `関連の資料` are not matching sources
 - JSON plan, TSV checklist, manual overrides, resumable status
 - Temporary-file validation before official filenames
+- Automatic Excel reference archive refreshed after every verified PDF
 - Page-count, SHA-256, duplicate-name, missing-file, and extra-file audits
 - macOS Chrome adapter plus a browser-neutral workflow
 
@@ -33,7 +34,7 @@ python3 -m pip install pypdf
 Restart Codex after installation. Then invoke:
 
 ```text
-Use $ndl-keyword-downloader to inspect my open NDL tabs and download sources related to 平田晋策.
+Use $ndl-keyword-downloader to inspect my open NDL tabs and download sources related to XXXX.
 ```
 
 ## Quick start
@@ -59,8 +60,8 @@ Build the plan:
 ```bash
 python3 scripts/ndl_plan.py \
   --inspection /absolute/work/ndl-inspection.json \
-  --keyword 平田晋策 \
-  --label 平田晋策 \
+  --keyword XXXX \
+  --label XXXX \
   --author-match person \
   --plan /absolute/work/ndl-download-plan.json \
   --checklist /absolute/work/ndl-download-checklist.tsv \
@@ -75,7 +76,7 @@ python3 scripts/ndl_macos_chrome.py download \
   --output-dir /absolute/work/pdfs
 ```
 
-Pass historical variants separately, for example `--keyword 松岡洋右 --keyword 松岡外務大臣`. The planner does not silently expand names because titles and offices can be ambiguous.
+Pass historical variants separately, for example `--keyword XXXX --keyword XXXX旧字表記`. The planner does not silently expand names because titles and offices can be ambiguous.
 
 Execute:
 
@@ -83,8 +84,27 @@ Execute:
 python3 scripts/ndl_macos_chrome.py download \
   --plan /absolute/work/ndl-download-plan.json \
   --output-dir /absolute/work/pdfs \
+  --archive /absolute/work/ndl-reference-archive.xlsx \
   --all --execute
 ```
+
+The executed download command automatically creates or refreshes an Excel archive. It groups
+multi-part 50-frame downloads into one bibliographic record and records the title, article
+title, author, publisher, publication date, volume/issue, target and downloaded frame ranges,
+filenames, PID URL, DOI, call number, bibliographic ID, access scope, the original
+`転載時の表記例`, and a formatted reference draft.
+
+If the PDFs were completed manually, rebuild the same archive with:
+
+```bash
+python3 scripts/ndl_archive.py \
+  --plan /absolute/work/ndl-download-plan.json \
+  --output-dir /absolute/work/pdfs \
+  --archive /absolute/work/ndl-reference-archive.xlsx
+```
+
+The generated citation is a reviewable draft, not a substitute for the target journal's style.
+NDL frame numbers are recorded explicitly and are not represented as printed page numbers.
 
 Audit:
 
@@ -104,7 +124,7 @@ The NDL interface is not a stable automation API. Selectors can change, and a hu
 
 ## 中文说明
 
-这个 Skill 把“按关键词检查国会图书馆页面、判断整本或单篇、每次最多下载 50 面、文章多带一面、检查重复与漏页”的流程打包成了可复用工具。它只使用用户有权访问的可见网页流程，不读取账号密码或浏览器 Cookie。自动规划后仍应人工检查 `needs-review` 文件，尤其是目录最后一篇、同名人物和“相关资料”造成的语义歧义。
+这个 Skill 把“按关键词检查国会图书馆页面、判断整本或单篇、每次最多下载 50 面、文章多带一面、检查重复与漏页”的流程打包成了可复用工具。下载完成后会自动生成 Excel 参考文献归档，保留 `転載時の表記例` 原文，并为单篇文章补充文章名和目标面数。它只使用用户有权访问的可见网页流程，不读取账号密码或浏览器 Cookie。自动规划后仍应人工检查 `needs-review` 文件和参考文献格式。
 
 ## Development
 
