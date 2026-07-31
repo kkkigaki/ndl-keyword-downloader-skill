@@ -23,7 +23,7 @@ This project does **not** bypass access controls and does not read browser cooki
 Clone the repository and copy or symlink the skill folder into your Codex skills directory:
 
 ```bash
-git clone https://github.com/YOUR_ACCOUNT/ndl-keyword-downloader-skill.git
+git clone https://github.com/kkkigaki/ndl-keyword-downloader-skill.git
 mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
 ln -s "$PWD/ndl-keyword-downloader-skill/skill/ndl-keyword-downloader" \
   "${CODEX_HOME:-$HOME/.codex}/skills/ndl-keyword-downloader"
