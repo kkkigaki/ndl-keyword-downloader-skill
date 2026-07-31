@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+.pytest_cache/
+.coverage
+ndl-inspection.json
+ndl-download-plan.json
+ndl-download-checklist.tsv
+ndl-needs-review.json
+ndl-audit.json
+pdfs/
