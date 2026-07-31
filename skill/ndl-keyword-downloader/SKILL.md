@@ -1,11 +1,11 @@
 ---
 name: ndl-keyword-downloader
-description: Plan, download, and verify keyword-relevant historical sources from the National Diet Library Digital Collections (国立国会図書館デジタルコレクション). Use when a user asks to inspect many open NDL PID pages, find a person or topic in titles/authors/tables of contents, download whole matching items or relevant chapters through the site's print-generated PDF workflow, split ranges at the NDL 50-frame limit, include a safety frame after an article, preserve bibliographic metadata, avoid duplicate downloads, or audit the resulting PDFs.
+description: Plan, download, archive, and verify keyword-relevant historical sources from the National Diet Library Digital Collections (国立国会図書館デジタルコレクション). Use when a user asks to inspect many open NDL PID pages, find a person or topic in titles/authors/tables of contents, download whole matching items or relevant chapters through the site's print-generated PDF workflow, split ranges at the NDL 50-frame limit, include a safety frame after an article, preserve bibliographic metadata and 転載時の表記例, create an Excel reference archive, avoid duplicate downloads, or audit the resulting PDFs.
 ---
 
 # NDL Keyword Downloader
 
-Turn open NDL item pages or PID URLs into a reviewable download plan, execute that plan through the visible NDL controls, and prove that every resulting PDF has the expected frame count.
+Turn open NDL item pages or PID URLs into a reviewable download plan, execute that plan through the visible NDL controls, archive completed sources in Excel, and prove that every resulting PDF has the expected frame count.
 
 ## Boundaries
 
@@ -64,8 +64,8 @@ Save all results as one JSON array conforming to [schema.md](references/schema.m
 ```bash
 python3 scripts/ndl_plan.py \
   --inspection /absolute/work/ndl-inspection.json \
-  --keyword 平田晋策 \
-  --label 平田晋策 \
+  --keyword XXXX \
+  --label XXXX \
   --author-match person \
   --plan /absolute/work/ndl-download-plan.json \
   --checklist /absolute/work/ndl-download-checklist.tsv \
@@ -84,7 +84,7 @@ The planner applies these rules:
 
 Inspect the checklist and `needs-review` file before downloading. Resolve false positives or uncertain ranges with an override file described in [schema.md](references/schema.md), then rebuild the plan. Do not use `--include-review` merely to suppress unresolved review work.
 
-Supply historical name variants as separate `--keyword` arguments. A full name such as `松岡洋右` does not automatically imply a title-only reference such as `松岡外務大臣`; expanding names without evidence would create false positives.
+Supply historical variants as separate `--keyword` arguments, for example `--keyword XXXX --keyword XXXX旧字表記`. The planner does not infer equivalent names, titles, or offices without evidence because that would create false positives.
 
 ### 4. Dry-run and download
 
@@ -102,14 +102,35 @@ After review, execute one PID or the full batch:
 python3 scripts/ndl_macos_chrome.py download \
   --plan /absolute/work/ndl-download-plan.json \
   --output-dir /absolute/work/pdfs \
+  --archive /absolute/work/ndl-reference-archive.xlsx \
   --all --execute
 ```
 
-The adapter reuses valid existing PDFs, updates the plan after every successful file, and validates a temporary PDF before making it official. It refuses stale generated links and preserves page-count mismatches under an `invalid-*` filename.
+The adapter reuses valid existing PDFs, updates the plan after every successful file, validates a temporary PDF before making it official, and refreshes the Excel archive after every verified PDF. It refuses stale generated links and preserves page-count mismatches under an `invalid-*` filename.
 
 If macOS Chrome control is unavailable, follow the manual/browser-controller sequence in [browser-workflow.md](references/browser-workflow.md), keeping filenames and statuses synchronized with the plan.
 
-### 5. Audit completion
+### 5. Verify the Excel reference archive
+
+The automatic workbook groups a whole item or article into one row even when its PDFs were split into 50-frame chunks. Confirm that each row includes:
+
+- title or periodical title, article title when applicable, author, publisher, publication date, and volume/issue;
+- target frames without the safety frame and downloaded frames with it;
+- every downloaded filename, verified page total, PID URL, DOI, call number, bibliographic ID, and access scope;
+- the verbatim `転載時の表記例` and an automatically formatted reference draft.
+
+The reference draft is not authoritative. Reconcile it with the original `転載時の表記例` and the target journal's style. Never relabel NDL frame numbers as printed page numbers.
+
+For downloads completed by another browser controller, build or refresh the workbook explicitly:
+
+```bash
+python3 scripts/ndl_archive.py \
+  --plan /absolute/work/ndl-download-plan.json \
+  --output-dir /absolute/work/pdfs \
+  --archive /absolute/work/ndl-reference-archive.xlsx
+```
+
+### 6. Audit completion
 
 Install `pypdf` or Poppler `pdfinfo`, then run:
 
@@ -121,7 +142,7 @@ python3 scripts/ndl_audit.py \
   --hash --find-extras
 ```
 
-Completion requires all plan rows to be verified, no duplicate planned filenames, and matching expected/actual total page counts. Explain all `needs_review`, missing, mismatched, unreadable, or extra files rather than declaring success from file count alone.
+Completion requires all plan rows to be verified, no duplicate planned filenames, matching expected/actual total page counts, and an Excel archive row for every completed source or article. Explain all `needs_review`, missing, mismatched, unreadable, extra, or unarchived files rather than declaring success from file count alone.
 
 ## Recovery
 
