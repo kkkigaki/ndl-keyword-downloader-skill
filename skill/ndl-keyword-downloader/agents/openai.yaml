@@ -1,0 +1,4 @@
+interface:
+  display_name: "NDL Keyword Downloader"
+  short_description: "Plan, download, and verify NDL keyword sources"
+  default_prompt: "Use $ndl-keyword-downloader to find and download National Diet Library sources matching my keyword."
