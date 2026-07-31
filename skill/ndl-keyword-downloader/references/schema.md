@@ -4,6 +4,7 @@
 
 - Inspection input
 - Plan output
+- Excel archive output
 - Override input
 - Review rules
 
@@ -16,15 +17,18 @@
   "pid": "10230307",
   "url": "https://dl.ndl.go.jp/pid/10230307",
   "title": "Example title",
-  "author": "平田晋策 著",
+  "author": "XXXX 著",
   "publisher": "Example publisher",
   "publication_date": "1936",
+  "volume_issue": "第1巻第2号",
+  "call_number": "Example call number",
+  "bibliographic_id": "Example bibliographic ID",
   "doi": "10.11501/10230307",
   "access_scope": "送信サービスで閲覧可能",
   "total_frames": 140,
   "toc": [
     {
-      "text": "Article title / 平田晋策",
+      "text": "Article title / XXXX",
       "frame": 49,
       "href": "https://dl.ndl.go.jp/pid/10230307/1/49"
     },
@@ -46,12 +50,12 @@ Do not include cookies, account identifiers, passwords, local-storage values, fu
 
 The planner writes an object with:
 
-- `schema_version`: currently `1`;
+- `schema_version`: currently `2`;
 - `keywords`, `label`, and `rules`: reproducibility metadata;
 - `rows`: ordered download operations;
 - `skipped`: inspected items without a structured match or manually excluded.
 
-Every row has a stable range, expected page count, safe basename, and status. Supported statuses are:
+Every row has a stable range, expected page count, safe basename, archive key, bibliographic metadata, and status. Whole-item chunks share one `archive_key`. Article chunks also share one `archive_key` and preserve `article_start` plus `target_end`, allowing the Excel archive to distinguish the article's target range from the extra downloaded safety frame.
 
 - `pending`: reviewed enough to download;
 - `needs_review`: range cannot be established safely;
@@ -61,6 +65,27 @@ Every row has a stable range, expected page count, safe basename, and status. Su
 - `missing`, `unreadable`: audit findings.
 
 Treat `start` and `end` as NDL frame numbers, inclusive. They are not printed page numbers.
+
+The planner carries these inspection fields into every applicable row: `title`, `article_title`, `author`, `publisher`, `publication_date`, `volume_issue`, `call_number`, `bibliographic_id`, `doi`, `access_scope`, `reproduction_note`, and `captured_at`.
+
+## Excel archive output
+
+`ndl_macos_chrome.py download --execute` automatically writes
+`OUTPUT_DIR/ndl-reference-archive.xlsx` unless `--archive` selects another path. The
+standalone `ndl_archive.py` command rebuilds the same workbook after manual or
+browser-neutral downloads.
+
+The workbook contains one row per whole item or article, not one row per 50-frame PDF
+chunk. Its principal columns are:
+
+- book or periodical title, article title, author, publisher, publication date, and volume/issue;
+- target frame range, downloaded frame range including the safety frame, filenames, and verified pages;
+- PID, NDL URL, DOI, call number, bibliographic ID, and access scope;
+- verbatim `転載時の表記例`;
+- an automatically formatted reference draft and download time.
+
+Treat the formatted reference as a draft. Preserve the original reproduction text, verify
+the target journal's style, and never represent NDL frame numbers as printed page numbers.
 
 ## Override input
 
@@ -96,7 +121,7 @@ Supply verified article boundaries:
       {
         "start": 49,
         "end": 56,
-        "label": "Article title / 平田晋策",
+        "label": "Article title / XXXX",
         "extra_after": 1
       }
     ]
