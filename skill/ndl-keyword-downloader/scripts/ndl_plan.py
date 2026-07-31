@@ -16,7 +16,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from ndl_common import WorkflowError, read_json, write_json_atomic
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 ROLE_SUFFIXES = re.compile(
     r"(共著|編著|著作|編集|監修|校訂|訳注|解説|講演|述|著|編|訳|撰|選)+$"
 )
@@ -106,8 +106,13 @@ def row_base(item: Dict[str, Any], pid: str) -> Dict[str, Any]:
         "publication_date": str(
             item.get("publication_date") or item.get("pubdate") or ""
         ).strip(),
+        "volume_issue": str(item.get("volume_issue") or "").strip(),
+        "call_number": str(item.get("call_number") or "").strip(),
+        "bibliographic_id": str(item.get("bibliographic_id") or "").strip(),
         "doi": str(item.get("doi") or "").strip(),
         "access_scope": str(item.get("access_scope") or "").strip(),
+        "reproduction_note": str(item.get("reproduction_note") or "").strip(),
+        "captured_at": str(item.get("captured_at") or "").strip(),
     }
 
 
@@ -127,6 +132,7 @@ def full_rows(
             {
                 **base,
                 "download_type": "full",
+                "archive_key": f"{pid}:full",
                 "reason": reason,
                 "article_title": "",
                 "sequence": sequence,
@@ -250,8 +256,12 @@ def article_rows(
             row = {
                 **base,
                 "download_type": "article",
+                "archive_key": (
+                    f"{pid}:article:{int(hit['start'])}-{int(hit['target_end'] or end)}"
+                ),
                 "reason": hit["reason"],
                 "article_title": hit["title"],
+                "article_start": int(hit["start"]),
                 "sequence": sequence,
                 "start": start,
                 "end": chunk_end,
@@ -313,7 +323,9 @@ def write_checklist(path: Path, rows: List[Dict[str, Any]]) -> None:
         "author",
         "publisher",
         "publication_date",
+        "volume_issue",
         "download_type",
+        "archive_key",
         "reason",
         "review_flags",
         "article_title",
@@ -326,6 +338,9 @@ def write_checklist(path: Path, rows: List[Dict[str, Any]]) -> None:
         "url",
         "doi",
         "access_scope",
+        "call_number",
+        "bibliographic_id",
+        "reproduction_note",
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
