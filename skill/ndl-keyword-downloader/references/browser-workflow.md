@@ -6,6 +6,7 @@
 - Search and candidate discovery
 - Browser-neutral collection
 - Browser-neutral download sequence
+- Excel reference archive
 - Current macOS Chrome selectors
 - Failure handling
 
@@ -68,6 +69,22 @@ For each reviewed plan row:
 12. Mark that row `downloaded` and persist the plan.
 
 When operating manually, use the checklist as the transaction log. Never infer success solely from Chrome's download indicator.
+
+## Excel reference archive
+
+After the selected download rows are complete, generate the same archive used by the
+macOS adapter:
+
+```bash
+python3 scripts/ndl_archive.py \
+  --plan /absolute/work/ndl-download-plan.json \
+  --output-dir /absolute/work/pdfs \
+  --archive /absolute/work/ndl-reference-archive.xlsx
+```
+
+Confirm that one workbook row represents each whole item or article, including all PDF
+chunks. Preserve the visible `転載時の表記例`; for an article, also preserve its title,
+target NDL frame range, and downloaded range including the safety frame.
 
 ## Current macOS Chrome selectors
 
